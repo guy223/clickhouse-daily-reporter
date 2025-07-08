@@ -1,0 +1,110 @@
+# SigNoz 테이블 스키마 탐색용 설정
+clickhouse:
+  connection_type: 'kubectl'
+  username: "your_username"
+  password: "your_password"
+  database: 'default'
+  
+  kubectl:
+    enabled: true
+    pod_name: 'chi-signoz-clickhouse-cluster-0-0-0'
+    namespace: 'clickhouse'
+    internal_port: 8123
+    port_forward_local_port: 8123
+
+output:
+  directory: './output'
+  filename_prefix: 'schema_discovery'
+
+queries:
+  # 모든 데이터베이스와 테이블 목록
+  all_tables:
+    name: '전체 테이블'
+    query: |
+      SELECT 
+        database,
+        name as table_name,
+        engine,
+        formatReadableSize(total_bytes) as size,
+        total_rows
+      FROM system.tables 
+      WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')
+      ORDER BY database, name
+  
+  # signoz_traces 데이터베이스의 모든 테이블
+  signoz_tables:
+    name: 'SigNoz 테이블'
+    query: |
+      SELECT 
+        name as table_name,
+        engine,
+        formatReadableSize(total_bytes) as size,
+        total_rows,
+        create_table_query
+      FROM system.tables 
+      WHERE database = 'signoz_traces'
+      ORDER BY total_bytes DESC
+  
+  # signoz_index_v3 테이블 컬럼 정보
+  signoz_v3_columns:
+    name: 'SigNoz v3 컬럼'
+    query: |
+      SELECT 
+        name as column_name,
+        type as column_type,
+        default_kind,
+        default_expression,
+        comment
+      FROM system.columns 
+      WHERE database = 'signoz_traces' 
+        AND table = 'signoz_index_v3'
+      ORDER BY position
+  
+  # signoz_index_v3 테이블 샘플 데이터 (5행만)
+  signoz_v3_sample:
+    name: 'SigNoz v3 샘플'
+    query: |
+      SELECT *
+      FROM signoz_traces.signoz_index_v3
+      LIMIT 5
+  
+  # signoz_logs 관련 테이블 확인
+  signoz_logs_tables:
+    name: 'SigNoz Logs 테이블'
+    query: |
+      SELECT 
+        name as table_name,
+        engine,
+        formatReadableSize(total_bytes) as size,
+        total_rows
+      FROM system.tables 
+      WHERE database = 'signoz_logs'
+      ORDER BY total_bytes DESC
+  
+  # signoz_metrics 관련 테이블 확인
+  signoz_metrics_tables:
+    name: 'SigNoz Metrics 테이블'
+    query: |
+      SELECT 
+        name as table_name,
+        engine,
+        formatReadableSize(total_bytes) as size,
+        total_rows
+      FROM system.tables 
+      WHERE database = 'signoz_metrics'
+      ORDER BY total_bytes DESC
+  
+  # 가장 큰 테이블들 (데이터가 많은 테이블)
+  largest_tables:
+    name: '큰 테이블들'
+    query: |
+      SELECT 
+        database,
+        name as table_name,
+        formatReadableSize(total_bytes) as size,
+        total_rows,
+        engine
+      FROM system.tables 
+      WHERE total_bytes > 1000000  -- 1MB 이상
+      ORDER BY total_bytes DESC
+      LIMIT 50
