@@ -11,6 +11,7 @@ clickhouse:
     namespace: 'clickhouse'
     internal_port: 8123
     port_forward_local_port: 8123
+    context: 'niffler2-prod-apse1-db-cluster'
 
 output:
   directory: './output'

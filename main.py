@@ -216,10 +216,20 @@ class ClickHouseReporter:
             local_port = kubectl_config.get('port_forward_local_port', 8123)
             context = kubectl_config.get('context')
             
+            # kubectl context 설정
+            if context:
+                context_cmd = ['kubectl', 'config', 'use-context', context]
+                self.logger.info(f"kubectl context 설정 중: {' '.join(context_cmd)}")
+                
+                result = subprocess.run(context_cmd, capture_output=True, text=True, timeout=30)
+                if result.returncode != 0:
+                    self.logger.error(f"kubectl context 설정 실패: {result.stderr}")
+                    return False
+                else:
+                    self.logger.info(f"kubectl context 설정 성공: {context}")
+            
             # kubectl 명령 구성
             cmd = ['kubectl', 'port-forward']
-            if context:
-                cmd.extend(['--context', context])
             if namespace:
                 cmd.extend(['-n', namespace])
             
