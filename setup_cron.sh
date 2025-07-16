@@ -7,7 +7,7 @@ echo "⏰ cron 설정 시작"
 
 # 현재 사용자와 경로 정보
 USER=$(whoami)
-SCRIPT_DIR="$HOME/clickhouse_reporter"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON_PATH=$(which python3)
 
 # 가상환경 확인 및 생성
@@ -73,11 +73,11 @@ echo "📋 현재 cron 작업 목록:"
 crontab -l 2>/dev/null | grep -E "(clickhouse_reporter|^#|^$)"
 echo ""
 echo "🕘 실행 일정: 매일 오전 10시 00분"
-echo "📝 실행 로그: ~/clickhouse_reporter/logs/cron_YYYYMMDD.log"
+echo "📝 실행 로그: $SCRIPT_DIR/logs/cron_YYYYMMDD.log"
 echo "🐍 가상환경 사용: $VENV_PYTHON"
 echo ""
 echo "🧪 수동 테스트 방법:"
-echo "  cd ~/clickhouse_reporter"
+echo "  cd $SCRIPT_DIR"
 echo "  source venv/bin/activate"
 echo "  python main.py"
 echo "  deactivate"
@@ -90,4 +90,4 @@ echo "🔍 cron 로그 확인:"
 echo "  grep CRON /var/log/syslog | tail -10"
 echo ""
 echo "🧪 cron 환경 테스트:"
-echo "  cd ~/clickhouse_reporter && $VENV_PYTHON main.py"
+echo "  cd $SCRIPT_DIR && $VENV_PYTHON main.py"

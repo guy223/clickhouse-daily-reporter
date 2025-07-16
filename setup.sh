@@ -7,8 +7,9 @@ echo "🚀 ClickHouse Daily Reporter 설치 시작"
 
 # 1. 필요한 디렉토리 생성
 echo "📁 디렉토리 생성 중..."
-mkdir -p ~/clickhouse_reporter/{logs,output}
-cd ~/clickhouse_reporter
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mkdir -p "$SCRIPT_DIR"/{logs,output}
+cd "$SCRIPT_DIR"
 
 # 2. Python 패키지 설치
 echo "📦 Python 패키지 설치 중..."
@@ -30,7 +31,7 @@ echo "2. 쿼리를 원하는 대로 수정하세요"
 echo "3. 테스트 실행: python3 main.py"
 echo "4. cron 설정: ./setup_cron.sh"
 echo ""
-echo "📄 설정 파일 위치: ~/clickhouse_reporter/config.yaml"
-echo "📊 출력 파일 위치: ~/clickhouse_reporter/output/"
-echo "📝 로그 파일 위치: ~/clickhouse_reporter/logs/"
+echo "📄 설정 파일 위치: $SCRIPT_DIR/config.yaml"
+echo "📊 출력 파일 위치: $SCRIPT_DIR/output/"
+echo "📝 로그 파일 위치: $SCRIPT_DIR/logs/"
 
