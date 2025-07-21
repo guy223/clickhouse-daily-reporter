@@ -23,10 +23,10 @@ bash git_setup.sh
 ### Development and Testing
 ```bash
 # Run the reporter manually
-python3 main.py
+uv run python main.py
 
 # Install Python dependencies
-pip3 install -r requirements.txt
+uv sync
 
 # Check logs
 cat logs/reporter_$(date +%Y%m%d).log
@@ -94,15 +94,19 @@ clickhouse_reporter/
 ├── git_setup.sh        # Git initialization and GitHub setup
 ├── logs/               # Execution logs (git-ignored)
 ├── output/             # Excel reports (git-ignored)
-└── venv/              # Virtual environment (git-ignored)
+└── .venv/             # uv virtual environment (git-ignored)
 ```
 
 ## Dependencies
+
+Python dependencies are managed using `uv` and defined in `pyproject.toml`:
 
 - `clickhouse-connect>=0.6.0` - ClickHouse client library
 - `pandas>=1.5.0` - Data manipulation and analysis
 - `PyYAML>=6.0` - YAML configuration parsing
 - `openpyxl>=3.1.0` - Excel file generation
+
+Use `uv sync` to install all dependencies.
 
 ## Development Notes
 

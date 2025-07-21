@@ -11,9 +11,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$SCRIPT_DIR"/{logs,output}
 cd "$SCRIPT_DIR"
 
-# 2. Python 패키지 설치
+# 2. Python 패키지 설치 (uv 사용)
 echo "📦 Python 패키지 설치 중..."
-pip3 install -r requirements.txt
+uv sync
 
 # 3. 실행 권한 부여
 echo "🔐 실행 권한 설정 중..."
@@ -21,14 +21,14 @@ chmod +x main.py
 
 # 4. 첫 실행 (config.yaml 생성)
 echo "⚙️ 설정 파일 생성 중..."
-python3 main.py
+uv run python main.py
 
 echo "✅ 설치 완료!"
 echo ""
 echo "📋 다음 단계:"
 echo "1. config.yaml 파일을 수정하여 ClickHouse 연결 정보를 입력하세요"
 echo "2. 쿼리를 원하는 대로 수정하세요"
-echo "3. 테스트 실행: python3 main.py"
+echo "3. 테스트 실행: uv run python main.py"
 echo "4. cron 설정: ./setup_cron.sh"
 echo ""
 echo "📄 설정 파일 위치: $SCRIPT_DIR/config.yaml"
