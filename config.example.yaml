@@ -15,9 +15,87 @@ clickhouse:
 
 output:
   directory: './output'
-  filename_prefix: 'schema_discovery'
+  filename_prefix: 'daily_report'
 
 queries:
+  # 10일간 일별 파티션 용량
+  all_parts_10days:
+    name: '10일간 일별 파티션 용량'
+    query: |
+      SELECT toDate(now()),
+            replace(replace(replace(t.database, '_logs', ''), '_metrics', ''), '_traces', '')    as service,
+            if(database like '%logs', 'logs', if(database like '%metrics', 'metrics', 'traces')) as database,
+            t.table,
+            p.partition,
+            disk_name,
+            ceil(sum(p.size) / 1024 / 1024, 0)                                                   as MB,
+            sum(rows)                                                                            as rows
+      from (select distinct database, table
+            from cluster('all-sharded', system.tables)
+            where 1 = 1
+              and engine like '%MergeTree'
+              and database not in ('information_schema', 'INFORMATION_SCHEMA', 'system', 'default')) t
+              left join (select database,
+                                table,
+                                partition,
+                                disk_name,
+      --                if(disk_name = 'default', bytes_on_disk, 0) as default,
+      --                if(disk_name = 's3_disk', bytes_on_disk, 0) as s3,
+                                bytes_on_disk as size,
+                                rows
+                          from
+                              cluster('all-sharded', system.parts)
+                          where database not in ('information_schema', 'INFORMATION_SCHEMA', 'system', 'default')) p
+                        on t.database = p.database and t.table = p.table
+      where 1 = 1
+        and (partition > cast(toDate(now() - interval 10 day) as text) or partition in ('', 'tuple()'))
+      --and partition = '2025-04-21'
+        and disk_name <> 's3_disk'
+      --and service = 'knox_matrix_prod'
+      --    and database = 'cmc_prod_logs'
+      --    and table = 'logs'
+      group by 1, 2, 3, 4, 5, 6
+      order by 2, 3, 4, 5, 6
+  
+  # 서비스별 총합 용량
+  all_services:
+    name: '서비스별 총합 용량'
+    query: |
+      SELECT
+      --     toDate(now()),
+      replace(replace(replace(t.database, '_logs', ''), '_metrics', ''), '_traces', '') as service,
+      --    if(database like '%logs', 'logs',if(database like '%metrics','metrics','traces')) as database,
+      --    t.table, p.partition,disk_name,
+      ceil(sum(p.size) / 1024 / 1024, 0)                                                as MB,
+      --    ceil(sum(p.default) / 1024 / 1024,    0) as default_MB,
+      --    ceil(sum(p.s3) / 1024 / 1024,    0) as s3_MB,
+      --    default_MB + s3_MB as total_MB,
+      sum(rows)                                                                         as rows
+      from (select distinct database, table
+            from cluster('all-sharded', system.tables)
+            where 1 = 1
+              and engine like '%MergeTree'
+              and database not in ('information_schema', 'INFORMATION_SCHEMA', 'system', 'default', 'test')) t
+              left join (select database,
+                                table,
+                                partition,
+                                disk_name,
+      --                if(disk_name = 'default', bytes_on_disk, 0) as default,
+      --                if(disk_name = 's3_disk', bytes_on_disk, 0) as s3,
+                                bytes_on_disk as size,
+                                rows
+                          from
+                              cluster('all-sharded', system.parts)
+                          where database not in ('information_schema', 'INFORMATION_SCHEMA', 'system', 'default', 'test')
+                            and active) p
+                        on t.database = p.database and t.table = p.table
+      where 1 = 1
+      --and (partition > cast(toDate(now() - interval 5 day) as text) or partition in ('', 'tuple()'))
+        and disk_name <> 's3_disk'
+      --and service = 'knox_matrix_prod'
+      group by 1
+      order by 1
+  
   # 모든 데이터베이스와 테이블 목록
   all_tables:
     name: '전체 테이블'
@@ -31,70 +109,7 @@ queries:
       FROM system.tables 
       WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')
       ORDER BY database, name
-  
-  # signoz_traces 데이터베이스의 모든 테이블
-  signoz_tables:
-    name: 'SigNoz 테이블'
-    query: |
-      SELECT 
-        name as table_name,
-        engine,
-        formatReadableSize(total_bytes) as size,
-        total_rows,
-        create_table_query
-      FROM system.tables 
-      WHERE database = 'signoz_traces'
-      ORDER BY total_bytes DESC
-  
-  # signoz_index_v3 테이블 컬럼 정보
-  signoz_v3_columns:
-    name: 'SigNoz v3 컬럼'
-    query: |
-      SELECT 
-        name as column_name,
-        type as column_type,
-        default_kind,
-        default_expression,
-        comment
-      FROM system.columns 
-      WHERE database = 'signoz_traces' 
-        AND table = 'signoz_index_v3'
-      ORDER BY position
-  
-  # signoz_index_v3 테이블 샘플 데이터 (5행만)
-  signoz_v3_sample:
-    name: 'SigNoz v3 샘플'
-    query: |
-      SELECT *
-      FROM signoz_traces.signoz_index_v3
-      LIMIT 5
-  
-  # signoz_logs 관련 테이블 확인
-  signoz_logs_tables:
-    name: 'SigNoz Logs 테이블'
-    query: |
-      SELECT 
-        name as table_name,
-        engine,
-        formatReadableSize(total_bytes) as size,
-        total_rows
-      FROM system.tables 
-      WHERE database = 'signoz_logs'
-      ORDER BY total_bytes DESC
-  
-  # signoz_metrics 관련 테이블 확인
-  signoz_metrics_tables:
-    name: 'SigNoz Metrics 테이블'
-    query: |
-      SELECT 
-        name as table_name,
-        engine,
-        formatReadableSize(total_bytes) as size,
-        total_rows
-      FROM system.tables 
-      WHERE database = 'signoz_metrics'
-      ORDER BY total_bytes DESC
-  
+     
   # 가장 큰 테이블들 (데이터가 많은 테이블)
   largest_tables:
     name: '큰 테이블들'

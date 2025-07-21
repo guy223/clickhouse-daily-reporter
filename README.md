@@ -4,18 +4,38 @@
 
 ## 🚀 빠른 시작
 
-### 1. 설치
+### 0. uv 설치 (Python 패키지 관리자)
 
 ```bash
-# 프로젝트 디렉토리 생성 및 이동
-mkdir ~/clickhouse_reporter
-cd ~/clickhouse_reporter
+# uv 설치
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 파일들을 이 디렉토리에 복사한 후
+# 설치 확인
+uv --version
+```
+
+### 1. 프로젝트 다운로드
+
+#### GitHub.com에서 다운로드
+```bash
+git clone https://github.com/jhk2025-kim/clickhouse_reporter.git
+cd clickhouse_reporter
+```
+
+#### Samsung GitHub Enterprise에서 다운로드
+```bash
+git clone git@github.ecodesamsung.com:jhk2025-kim/clickhouse_reporter.git
+cd clickhouse_reporter
+```
+
+### 2. 설치
+
+```bash
+# 의존성 설치 및 환경 설정
 bash setup.sh
 ```
 
-### 2. 설정
+### 3. 설정
 
 `config.yaml` 파일을 수정하여 ClickHouse 연결 정보를 입력하세요:
 
@@ -34,7 +54,7 @@ clickhouse:
     port_forward_local_port: 8123
 ```
 
-### 3. 쿼리 설정
+### 4. 쿼리 설정
 
 `config.yaml`에서 실행할 쿼리를 설정하세요:
 
@@ -53,13 +73,13 @@ queries:
       LIMIT 100
 ```
 
-### 4. 테스트 실행
+### 5. 테스트 실행
 
 ```bash
 uv run python main.py
 ```
 
-### 5. 자동화 설정
+### 6. 자동화 설정
 
 ```bash
 bash setup_cron.sh
