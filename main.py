@@ -298,6 +298,10 @@ class ClickHouseReporter:
         try:
             self.logger.info(f"쿼리 실행 시작: {query_name}")
             
+            if not self.client:
+                self.logger.error(f"ClickHouse 클라이언트가 연결되지 않았습니다: {query_name}")
+                return None
+                
             result = self.client.query(query_info['query'])
             df = pd.DataFrame(result.result_rows, columns=result.column_names)
             
@@ -322,7 +326,8 @@ class ClickHouseReporter:
             
             # Excel 파일 생성
             wb = Workbook()
-            wb.remove(wb.active)  # 기본 시트 제거
+            if wb.active:
+                wb.remove(wb.active)  # 기본 시트 제거
             
             for sheet_name, df in data_dict.items():
                 if df is not None and not df.empty:

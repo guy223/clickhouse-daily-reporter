@@ -56,15 +56,17 @@ cat config.example.yaml
    - **kubectl Port-forwarding** (`main.py:152-196`): Kubernetes pod access with automatic port forwarding
    - **Port Forward Lifecycle** (`main.py:207-284`): Process management with cleanup handlers
 
-3. **Query Execution Engine** (`main.py:286-299`)
+3. **Query Execution Engine** (`main.py:296-318`)
    - Executes multiple queries defined in configuration
    - Converts results to pandas DataFrames
    - Comprehensive error handling and logging
+   - Type safety checks for null query_info and client connections
 
-4. **Excel Report Generation** (`main.py:301-356`)
+4. **Excel Report Generation** (`main.py:320-380`)
    - Multi-sheet Excel files with automatic formatting
    - Header styling and column width optimization
    - Date-based file naming
+   - Safe handling of workbook operations with null checks
 
 ### Configuration System
 
@@ -80,6 +82,7 @@ The `config.yaml` file supports:
 - **Signal Handling**: Graceful shutdown on SIGTERM/SIGINT
 - **Error Recovery**: Fallback connection methods and comprehensive logging
 - **Extensible Query System**: Configuration-driven query definitions
+- **Type Safety**: Comprehensive null checks and defensive programming for robustness
 
 ## File Structure
 
@@ -124,6 +127,13 @@ Use `uv sync` to install all dependencies.
 - Styling logic is in `create_excel_file()` method
 - Column width calculation has max limit of 50 characters
 - Header styling uses blue background with white text
+- Safe workbook operations with null checks to prevent type errors
+
+### Code Quality and Type Safety:
+- All critical paths include null/undefined checks
+- Query execution validates client connection state
+- Excel operations handle optional worksheet references safely
+- Pylance warnings are addressed with defensive programming
 
 ### Testing in different environments:
 - WSL2 Ubuntu is the primary tested environment

@@ -56,7 +56,7 @@ queries:
 ### 4. 테스트 실행
 
 ```bash
-python3 main.py
+uv run python main.py
 ```
 
 ### 5. 자동화 설정
@@ -70,15 +70,18 @@ bash setup_cron.sh
 ```
 clickhouse_reporter/
 ├── main.py              # 메인 실행 스크립트
-├── config.yaml          # 설정 파일
-├── requirements.txt     # Python 패키지 목록
+├── config.yaml          # 설정 파일 (git-ignored)
+├── config.example.yaml  # 설정 파일 템플릿
+├── pyproject.toml       # uv 패키지 관리 파일
+├── requirements.txt     # Python 패키지 목록 (호환성용)
 ├── setup.sh            # 설치 스크립트
 ├── setup_cron.sh       # cron 설정 스크립트
-├── logs/               # 실행 로그
-│   ├── reporter_20241207.log
-│   └── cron_20241207.log
-└── output/             # Excel 파일 저장
-    └── daily_report_20241207.xlsx
+├── logs/               # 실행 로그 (git-ignored)
+│   ├── reporter_20250721.log
+│   └── cron_20250721.log
+├── output/             # Excel 파일 저장 (git-ignored)
+│   └── daily_report_20250721.xlsx
+└── .venv/             # uv 가상환경 (git-ignored)
 ```
 
 ## ⚙️ 주요 기능
@@ -89,6 +92,9 @@ clickhouse_reporter/
 - **자동 스타일링**: 헤더 스타일 및 열 너비 자동 조정
 - **완전한 로깅**: 실행 이력 및 에러 로그 관리
 - **cron 자동화**: 매일 오전 9:30 자동 실행
+- **Kubernetes 지원**: kubectl port-forwarding을 통한 안전한 접근
+- **타입 안전성**: Pylance 호환 및 방어적 프로그래밍
+- **uv 패키지 관리**: 빠르고 안정적인 Python 의존성 관리
 
 ## 🔧 설정 상세
 
@@ -137,6 +143,12 @@ cat logs/reporter_$(date +%Y%m%d).log
 # cron 실행 로그 확인
 cat logs/cron_$(date +%Y%m%d).log
 
+# 수동 실행 (디버깅용)
+uv run python main.py
+
+# 의존성 설치/업데이트
+uv sync
+
 # 시스템 cron 로그 확인
 grep CRON /var/log/syslog | tail -10
 ```
@@ -180,10 +192,23 @@ ls -la ~/clickhouse_reporter/
 3. **백업**: 중요한 쿼리는 별도 백업 보관
 4. **성능 고려**: 대용량 데이터 쿼리 시 LIMIT 사용 권장
 
+## 🔧 개발 환경
+
+### 패키지 관리
+- **uv**: 빠른 Python 패키지 관리자 사용
+- **가상환경**: `.venv/` 디렉토리에 자동 생성
+- **의존성**: `pyproject.toml`에서 관리
+
+### 코드 품질
+- **타입 안전성**: Pylance 경고 모두 해결
+- **방어적 프로그래밍**: null/undefined 체크 포함
+- **에러 처리**: 모든 중요 경로에서 예외 처리
+
 ## 🚨 주의사항
 
 - WSL2 환경에서만 테스트되었습니다
 - ClickHouse 24.1.2.5 버전에서 테스트되었습니다
 - 파일 경로에 한글이 포함될 경우 인코딩 문제가 발생할 수 있습니다
 - 대용량 결과 세트는 메모리 사용량을 고려하여 LIMIT을 설정하세요
+- kubectl 연결 시 Kubernetes context가 올바르게 설정되어 있어야 합니다
 
