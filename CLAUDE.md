@@ -1,148 +1,343 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with this ClickHouse Reporter codebase.
 
 ## Project Overview
 
-This is a Python-based ClickHouse Daily Reporter that automatically executes queries and generates Excel reports. The tool is designed for Kubernetes environments with kubectl port-forwarding support and includes comprehensive logging and cron scheduling.
+ClickHouse Daily Reporter는 Kubernetes 환경에서 ClickHouse 클러스터에 대한 자동화된 쿼리 실행 및 Excel 리포트 생성을 담당하는 Python 애플리케이션입니다. kubectl port-forwarding을 통한 안전한 Pod 접근, 완전한 로깅 시스템, cron 기반 스케줄링을 지원합니다.
+
+### 핵심 기능
+- **다중 연결 타입**: 직접 연결과 kubectl port-forwarding 지원
+- **Context Alias 시스템**: Kubernetes context를 별칭으로 관리 (`main.py:24-34`)
+- **자동 리소스 관리**: 연결 및 프로세스 정리 자동화
+- **타입 안전성**: 방어적 프로그래밍 및 null 체크
+- **Excel 자동 포맷팅**: 헤더 스타일링 및 열 너비 최적화
 
 ## Key Commands
 
 ### Setup and Installation
 ```bash
-# Install dependencies and setup
+# Install dependencies and setup environment
 bash setup.sh
 
-# Setup cron scheduling (runs daily at 9:30 AM)
+# Setup cron scheduling (daily 9:30 AM execution)
 bash setup_cron.sh
 
-# Initialize git repository and GitHub setup
+# Git repository initialization and GitHub setup
 bash git_setup.sh
 ```
 
 ### Development and Testing
 ```bash
-# Run the reporter manually
+# Manual execution
 uv run python main.py
 
-# Install Python dependencies
+# Run with specific Kubernetes context
+uv run python main.py --context prod
+
+# Install/update dependencies  
 uv sync
 
-# Check logs
+# Log monitoring
 cat logs/reporter_$(date +%Y%m%d).log
 cat logs/cron_$(date +%Y%m%d).log
 ```
 
-### Configuration
+### Configuration Management
 ```bash
-# Edit main configuration
+# Edit runtime configuration
 vi config.yaml
 
-# View example configuration
+# View configuration template
 cat config.example.yaml
+
+# Environment-specific configs
+cp config.yaml config.prod.yaml
+CONFIG_FILE=config.prod.yaml uv run python main.py
 ```
 
 ## Architecture
 
 ### Core Components
 
-1. **ClickHouseReporter Class** (`main.py:22-425`)
-   - Main orchestrator class handling configuration, connections, and execution
-   - Supports both direct connections and kubectl port-forwarding
-   - Manages connection lifecycle and cleanup
+1. **ClickHouseReporter Class** (`main.py:22-500+`)
+   - Main orchestrator class with comprehensive connection and execution management
+   - **Context Resolution System** (`main.py:24-34`, `main.py:48-60`): Kubernetes context alias mapping
+   - **Lifecycle Management**: Automatic resource cleanup and signal handling
+   - **Multi-environment Support**: Development, staging, production context switching
 
-2. **Connection Management**
-   - **Direct Connection** (`main.py:135-150`): Standard ClickHouse HTTP connection
-   - **kubectl Port-forwarding** (`main.py:152-196`): Kubernetes pod access with automatic port forwarding
-   - **Port Forward Lifecycle** (`main.py:207-284`): Process management with cleanup handlers
+2. **Connection Management System**
+   - **Direct Connection** (`main.py:~135-150`): Standard ClickHouse HTTP client
+   - **kubectl Port-forwarding** (`main.py:~152-196`): Kubernetes Pod access via port forwarding
+   - **Context-aware Connections**: Automatic context resolution and switching
+   - **Connection Pooling**: Efficient resource utilization and cleanup
 
-3. **Query Execution Engine** (`main.py:296-318`)
-   - Executes multiple queries defined in configuration
-   - Converts results to pandas DataFrames
-   - Comprehensive error handling and logging
-   - Type safety checks for null query_info and client connections
+3. **Advanced Port Forward Management** (`main.py:~207-284`)
+   - **Process Lifecycle**: Automatic subprocess management with proper cleanup
+   - **Signal Handlers**: Graceful shutdown on SIGTERM/SIGINT signals
+   - **Health Checks**: Port availability verification and retry logic
+   - **Error Recovery**: Fallback mechanisms for connection failures
 
-4. **Excel Report Generation** (`main.py:320-380`)
-   - Multi-sheet Excel files with automatic formatting
-   - Header styling and column width optimization
-   - Date-based file naming
-   - Safe handling of workbook operations with null checks
+4. **Query Execution Engine** (`main.py:~296-318`)
+   - **Multi-query Support**: Batch execution of configured queries
+   - **Data Transformation**: Automatic pandas DataFrame conversion
+   - **Error Isolation**: Per-query error handling without affecting others
+   - **Type Safety**: Comprehensive null checks and defensive programming
 
-### Configuration System
+5. **Excel Report Generation** (`main.py:~320-380`)
+   - **Multi-sheet Workbooks**: Each query as separate Excel sheet
+   - **Automatic Formatting**: Header styling, column width optimization
+   - **Template System**: Consistent styling across all sheets
+   - **Memory Management**: Efficient handling of large datasets
 
-The `config.yaml` file supports:
-- **Connection types**: `direct` or `kubectl`
-- **Multiple queries**: Each with name and SQL definition
-- **Output customization**: Directory and filename prefixes
-- **kubectl settings**: Pod name, namespace, port forwarding configuration
+### Configuration Architecture
 
-### Key Design Patterns
+The `config.yaml` system supports:
 
-- **Resource Management**: Automatic cleanup of connections and port-forwarding processes
-- **Signal Handling**: Graceful shutdown on SIGTERM/SIGINT
-- **Error Recovery**: Fallback connection methods and comprehensive logging
-- **Extensible Query System**: Configuration-driven query definitions
-- **Type Safety**: Comprehensive null checks and defensive programming for robustness
+```yaml
+# Connection Configuration
+clickhouse:
+  connection_type: 'kubectl'|'direct'
+  username: string
+  password: string
+  database: string
+  host: string (direct only)
+  port: int (direct only)
+  
+  kubectl:
+    enabled: boolean
+    pod_name: string
+    namespace: string
+    internal_port: int
+    port_forward_local_port: int
+    context: string (optional - uses alias resolution)
+
+# Query Configuration  
+queries:
+  query_key:
+    name: string (Excel sheet name)
+    query: string (SQL statement)
+
+# Output Configuration
+output:
+  directory: string
+  filename_prefix: string
+```
+
+### Design Patterns
+
+- **Context Resolution Pattern**: Alias-to-actual-name mapping for Kubernetes contexts
+- **Resource Management Pattern**: RAII-style resource cleanup with context managers
+- **Signal Handling Pattern**: Graceful shutdown registration and cleanup
+- **Configuration-driven Architecture**: Zero-code query addition/modification
+- **Defensive Programming**: Null checks, type validation, error isolation
+- **Template Method Pattern**: Consistent Excel formatting across all reports
 
 ## File Structure
 
 ```
 clickhouse_reporter/
 ├── main.py              # Main application with ClickHouseReporter class
+│                        # - Context alias resolution system
+│                        # - Connection management (direct/kubectl)
+│                        # - Query execution engine
+│                        # - Excel report generation
 ├── config.yaml          # Runtime configuration (git-ignored)
-├── config.example.yaml  # Example configuration template
-├── requirements.txt     # Python dependencies
-├── setup.sh            # Installation and setup script
-├── setup_cron.sh       # Cron scheduling setup
-├── git_setup.sh        # Git initialization and GitHub setup
-├── logs/               # Execution logs (git-ignored)
-├── output/             # Excel reports (git-ignored)
-└── .venv/             # uv virtual environment (git-ignored)
+├── config.example.yaml  # Configuration template with examples
+├── pyproject.toml       # uv package management and metadata
+├── requirements.txt     # Pip compatibility (generated from pyproject.toml)
+├── setup.sh            # Environment setup and dependency installation
+├── setup_cron.sh       # Cron job configuration script
+├── git_setup.sh        # Git repository initialization
+├── README.md           # User documentation and usage guide
+├── CLAUDE.md           # Development guide (this file)
+├── logs/               # Application and cron execution logs (git-ignored)
+│   ├── reporter_YYYYMMDD.log
+│   └── cron_YYYYMMDD.log
+├── output/             # Generated Excel reports (git-ignored)
+│   └── daily_report_YYYYMMDD.xlsx
+└── .venv/             # uv-managed virtual environment (git-ignored)
 ```
 
 ## Dependencies
 
-Python dependencies are managed using `uv` and defined in `pyproject.toml`:
+### Core Dependencies (pyproject.toml)
+```toml
+[project]
+name = "clickhouse-reporter"
+version = "1.0.0"
+requires-python = ">=3.8"
+dependencies = [
+    "clickhouse-connect>=0.6.0",  # ClickHouse HTTP client
+    "pandas>=1.5.0",              # Data manipulation and analysis
+    "PyYAML>=6.0",               # YAML configuration parsing
+    "openpyxl>=3.1.0",           # Excel file generation and formatting
+]
+```
 
-- `clickhouse-connect>=0.6.0` - ClickHouse client library
-- `pandas>=1.5.0` - Data manipulation and analysis
-- `PyYAML>=6.0` - YAML configuration parsing
-- `openpyxl>=3.1.0` - Excel file generation
+### Development Tools
+- **uv**: Fast Python package manager and virtual environment
+- **kubectl**: Kubernetes command-line tool (external dependency)
+- **cron**: System scheduler (Linux/WSL)
 
-Use `uv sync` to install all dependencies.
+### Installation
+```bash
+# Install all dependencies
+uv sync
 
-## Development Notes
+# Update dependencies
+uv lock --upgrade
+```
 
-### When adding new queries:
-1. Add query configuration to `config.yaml` under `queries` section
-2. Each query needs `name` (Excel sheet name) and `query` (SQL statement)
-3. Test manually before setting up cron
+## Development Guidelines
 
-### When modifying connection logic:
-- The connection system supports both direct and kubectl modes
-- Port forwarding processes are managed with proper cleanup
-- Always test both connection types if making changes
+### Adding New Queries
+1. **Configuration**: Add query to `config.yaml` under `queries` section
+   ```yaml
+   queries:
+     new_query_key:
+       name: 'Sheet Name'  # Excel sheet name
+       query: |            # SQL query (supports multi-line)
+         SELECT column1, column2
+         FROM table_name
+         WHERE condition
+         ORDER BY column1
+   ```
 
-### When updating Excel formatting:
-- Styling logic is in `create_excel_file()` method
-- Column width calculation has max limit of 50 characters
-- Header styling uses blue background with white text
-- Safe workbook operations with null checks to prevent type errors
+2. **Testing**: Always test new queries manually before production
+   ```bash
+   uv run python main.py  # Test execution
+   ```
 
-### Code Quality and Type Safety:
+3. **Validation**: Check generated Excel file for formatting and data accuracy
+
+### Modifying Connection Logic
+
+**Connection Types** (`main.py`):
+- **Direct**: Standard HTTP connection to ClickHouse
+- **kubectl**: Port-forwarding through Kubernetes Pod
+
+**Key Considerations**:
+- Connection lifecycle management with proper cleanup
+- Context resolution system handles alias mapping
+- Port forwarding processes require subprocess management
+- Always test both connection types when making changes
+
+**Testing Connection Changes**:
+```bash
+# Test direct connection
+uv run python main.py
+
+# Test kubectl with specific context
+uv run python main.py --context prod
+
+# Verify port forwarding cleanup
+ps aux | grep kubectl
+```
+
+### Excel Formatting Updates
+
+**Location**: `create_excel_file()` method in main.py
+
+**Key Components**:
+- **Header Styling**: Blue background (#4472C4), white text, bold font
+- **Column Width**: Auto-calculated with 50-character maximum
+- **Data Formatting**: Automatic type detection and appropriate formatting
+- **Memory Management**: Efficient handling for large datasets
+
+**Safety Patterns**:
+```python
+# Safe worksheet operations
+if worksheet is not None:
+    # Perform operations
+    
+# Null-safe column width calculation
+max_width = min(max_length, 50) if max_length else 10
+```
+
+### Code Quality Standards
+
+**Type Safety Requirements**:
 - All critical paths include null/undefined checks
-- Query execution validates client connection state
-- Excel operations handle optional worksheet references safely
-- Pylance warnings are addressed with defensive programming
+- Client connection validation before query execution
+- Defensive programming for optional values
+- Pylance warnings must be resolved
 
-### Testing in different environments:
-- WSL2 Ubuntu is the primary tested environment
-- ClickHouse 24.1.2.5 is the tested version
-- kubectl port-forwarding requires proper Kubernetes context setup
+**Error Handling**:
+- Per-query error isolation (one failure doesn't stop others)
+- Comprehensive logging for debugging
+- Graceful degradation on connection issues
+- Resource cleanup on exceptions
 
-## Security Considerations
+**Example Defensive Pattern**:
+```python
+def safe_operation(self):
+    if self.client is None:
+        self.logger.error("Client not initialized")
+        return None
+    
+    try:
+        result = self.client.query(sql)
+        return result if result is not None else []
+    except Exception as e:
+        self.logger.error(f"Query failed: {e}")
+        return None
+```
 
-- `config.yaml` is git-ignored to prevent credential exposure
-- Use `config.example.yaml` as a template with masked credentials
-- Logs may contain query text but not credentials
-- Port forwarding uses local ports only
+### Environment-Specific Development
+
+**Context Management**:
+- Use context aliases for different environments (dev, stg, prod)
+- Context resolution happens at initialization
+- Multiple context support for multi-environment deployments
+
+**Environment Testing**:
+```bash
+# Development context
+uv run python main.py --context dev
+
+# Staging context  
+uv run python main.py --context stg
+
+# Production context
+uv run python main.py --context prod
+```
+
+**WSL2 Considerations**:
+- Primary tested environment: WSL2 Ubuntu
+- ClickHouse version: 24.1.2.5+
+- kubectl context setup required for Kubernetes connections
+
+### Security Best Practices
+
+**Credential Management**:
+- `config.yaml` is git-ignored for security
+- Use `config.example.yaml` as template with placeholder values
+- No hardcoded credentials in source code
+- Environment variable support for sensitive data
+
+**Logging Security**:
+- Query text logged for debugging (no credentials)
+- Connection details masked in logs
+- No sensitive data in error messages
+- Log file rotation and cleanup
+
+**Network Security**:
+- kubectl port-forwarding uses localhost only
+- No external port exposure
+- Connection timeout and retry limits
+- SSL/TLS support for direct connections
+
+### Performance Optimization
+
+**Query Performance**:
+- Use `LIMIT` clauses for large result sets
+- Consider query complexity and execution time
+- Monitor memory usage during DataFrame conversion
+- Batch processing for multiple queries
+
+**Resource Management**:
+- Automatic connection cleanup
+- Process management for port-forwarding
+- Memory-efficient Excel generation
+- Log file rotation and cleanup
